@@ -59,25 +59,28 @@ def flash_attention(
     def half(x):
         return x if x.dtype in half_dtypes else x.to(dtype)
 
-    # preprocess query
-    if q_lens is None:
-        q = half(q.flatten(0, 1))
-        q_lens = torch.tensor(
-            [lq] * b, dtype=torch.int32).to(
-                device=q.device, non_blocking=True)
+    fixlen=True
+    if(fixlen):
+        pass
     else:
-        q = half(torch.cat([u[:v] for u, v in zip(q, q_lens)]))
-
-    # preprocess key, value
-    if k_lens is None:
-        k = half(k.flatten(0, 1))
-        v = half(v.flatten(0, 1))
-        k_lens = torch.tensor(
-            [lk] * b, dtype=torch.int32).to(
-                device=k.device, non_blocking=True)
-    else:
-        k = half(torch.cat([u[:v] for u, v in zip(k, k_lens)]))
-        v = half(torch.cat([u[:v] for u, v in zip(v, k_lens)]))
+        # preprocess query
+        if q_lens is None:
+            q = half(q.flatten(0, 1))
+            q_lens = torch.tensor(
+                [lq] * b, dtype=torch.int32).to(
+                    device=q.device, non_blocking=True)
+        else:
+            q = half(torch.cat([u[:v] for u, v in zip(q, q_lens)]))
+            # preprocess key, value
+            if k_lens is None:
+                k = half(k.flatten(0, 1))
+                v = half(v.flatten(0, 1))
+                k_lens = torch.tensor(
+                    [lk] * b, dtype=torch.int32).to(
+                        device=k.device, non_blocking=True)
+            else:
+                k = half(torch.cat([u[:v] for u, v in zip(k, k_lens)]))
+                v = half(torch.cat([u[:v] for u, v in zip(v, k_lens)]))
 
     q = q.to(v.dtype)
     k = k.to(v.dtype)
@@ -110,21 +113,34 @@ def flash_attention(
             deterministic=deterministic)[0].unflatten(0, (b, lq))
     else:
         assert FLASH_ATTN_2_AVAILABLE
-        x = flash_attn.flash_attn_varlen_func(
+        #here call varlen
+        # x = flash_attn.flash_attn_varlen_func(
+        #     q=q,
+        #     k=k,
+        #     v=v,
+        #     cu_seqlens_q=torch.cat([q_lens.new_zeros([1]), q_lens]).cumsum(
+        #         0, dtype=torch.int32).to(q.device, non_blocking=True),
+        #     cu_seqlens_k=torch.cat([k_lens.new_zeros([1]), k_lens]).cumsum(
+        #         0, dtype=torch.int32).to(q.device, non_blocking=True),
+        #     max_seqlen_q=lq,
+        #     max_seqlen_k=lk,
+        #     dropout_p=dropout_p,
+        #     softmax_scale=softmax_scale,
+        #     causal=causal,
+        #     window_size=window_size,
+        #     deterministic=deterministic).unflatten(0, (b, lq))
+        print('qiang-----------------------------')
+        print(q.shape)
+        print(k.shape)
+        print(v.shape)
+
+        x = flash_attn.flash_attn_func(
             q=q,
             k=k,
             v=v,
-            cu_seqlens_q=torch.cat([q_lens.new_zeros([1]), q_lens]).cumsum(
-                0, dtype=torch.int32).to(q.device, non_blocking=True),
-            cu_seqlens_k=torch.cat([k_lens.new_zeros([1]), k_lens]).cumsum(
-                0, dtype=torch.int32).to(q.device, non_blocking=True),
-            max_seqlen_q=lq,
-            max_seqlen_k=lk,
             dropout_p=dropout_p,
             softmax_scale=softmax_scale,
-            causal=causal,
-            window_size=window_size,
-            deterministic=deterministic).unflatten(0, (b, lq))
+            causal=causal)
 
     # output
     return x.type(out_dtype)
