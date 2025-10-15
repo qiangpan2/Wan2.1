@@ -132,10 +132,12 @@ class VaceWanModel(WanModel):
             self.dim,
             kernel_size=self.patch_size,
             stride=self.patch_size)
+        # Convert vace_patch_embedding to channels_last format
+        self.vace_patch_embedding.weight.data = self.vace_patch_embedding.weight.data.to(memory_format=torch.channels_last_3d)
 
     def forward_vace(self, x, vace_context, seq_len, kwargs):
         # embeddings
-        c = [self.vace_patch_embedding(u.unsqueeze(0)) for u in vace_context]
+        c = [self.vace_patch_embedding(u.unsqueeze(0).to(memory_format=torch.channels_last_3d)) for u in vace_context]
         c = [u.flatten(2).transpose(1, 2) for u in c]
         c = torch.cat([
             torch.cat([u, u.new_zeros(1, seq_len - u.size(1), u.size(2))],

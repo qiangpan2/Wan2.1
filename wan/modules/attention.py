@@ -129,10 +129,6 @@ def flash_attention(
         #     causal=causal,
         #     window_size=window_size,
         #     deterministic=deterministic).unflatten(0, (b, lq))
-        print('qiang-----------------------------')
-        print(q.shape)
-        print(k.shape)
-        print(v.shape)
 
         x = flash_attn.flash_attn_func(
             q=q,
