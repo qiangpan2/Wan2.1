@@ -73,7 +73,7 @@ class Upsample(nn.Upsample):
         """
         Fix bfloat16 support for nearest neighbor interpolation.
         """
-        return super().forward(x.float()).type_as(x)
+        return super().forward(x.half()).type_as(x)
 
 
 class Resample(nn.Module):
@@ -634,7 +634,7 @@ class WanVAE:
     def __init__(self,
                  z_dim=16,
                  vae_pth='cache/vae_step_411000.pth',
-                 dtype=torch.float,
+                 dtype=torch.half,
                  device="cuda"):
         self.dtype = dtype
         self.device = device
@@ -663,7 +663,7 @@ class WanVAE:
         """
         with amp.autocast(dtype=self.dtype):
             return [
-                self.model.encode(u.unsqueeze(0), self.scale).float().squeeze(0)
+                self.model.encode(u.unsqueeze(0), self.scale).half().squeeze(0)
                 for u in videos
             ]
 
@@ -671,6 +671,6 @@ class WanVAE:
         with amp.autocast(dtype=self.dtype):
             return [
                 self.model.decode(u.unsqueeze(0),
-                                  self.scale).float().clamp_(-1, 1).squeeze(0)
+                                  self.scale).half().clamp_(-1, 1).squeeze(0)
                 for u in zs
             ]
